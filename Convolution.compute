@@ -1,0 +1,91 @@
+// Downsampling convolution and upsampling transposed convolution kernels
+// https://github.com/keijiro/Pix2Pix
+
+#pragma enable_d3d11_debug_symbols
+
+#pragma kernel SwapFilter
+
+#pragma kernel Conv2D_64
+#pragma kernel Conv2D_128
+#pragma kernel Conv2D_256
+#pragma kernel Conv2D_512
+
+#pragma kernel TransConv2D_64
+#pragma kernel TransConv2D_128
+#pragma kernel TransConv2D_256
+#pragma kernel TransConv2D_512
+#pragma kernel TransConv2D_1024
+
+Buffer<float> Input;
+Buffer<float> Filter;
+Buffer<float> Bias;
+RWBuffer<float> Output;
+
+uint3 InputShape;
+uint4 FilterShape;
+uint3 OutputShape;
+
+uint3 InputIndexer;
+uint4 FilterIndexer;
+uint3 OutputIndexer;
+
+groupshared float cache[2][1024];
+
+float GetInput(uint3 pos, uint2 pad)
+{
+    float mask = 1 - (any(pos.xy < pad) || any(pos.xy >= InputShape.xy + pad));
+    pos.xy -= pad * mask;
+    return Input[dot(pos, InputIndexer)] * mask;
+}
+
+float GetFilter(uint4 i)
+{
+    return Filter[dot(i, FilterIndexer)];
+}
+
+uint OutputIndex(uint3 i)
+{
+    return dot(i, OutputIndexer);
+}
+
+[numthreads(4, 4, 1)]
+void SwapFilter(uint2 tid : SV_DispatchThreadID)
+{
+    for (uint o = 0; o < FilterShape.z; o++)
+    {
+        for (uint i = 0; i < FilterShape.w; i++)
+        {
+            uint idx = ((tid.x * FilterShape.y + tid.y) * FilterShape.w + i) * FilterShape.z + o;
+            Output[idx] = Filter[dot(FilterIndexer, uint4(tid.xy, o, i))];
+        }
+    }
+}
+
+[numthreads(64, 1, 1)] void Conv2D_64
+#include "Convolution.hlsl"
+
+[numthreads(128, 1, 1)] void Conv2D_128
+#include "Convolution.hlsl"
+
+[numthreads(256, 1, 1)] void Conv2D_256
+#include "Convolution.hlsl"
+
+[numthreads(512, 1, 1)] void Conv2D_512
+#include "Convolution.hlsl"
+
+#define CONVOLUTION_TRANSPOSE
+
+[numthreads(64, 1, 1)] void TransConv2D_64
+#include "Convolution.hlsl"
+
+[numthreads(128, 1, 1)] void TransConv2D_128
+#include "Convolution.hlsl"
+
+[numthreads(256, 1, 1)] void TransConv2D_256
+#include "Convolution.hlsl"
+
+[numthreads(512, 1, 1)] void TransConv2D_512
+#include "Convolution.hlsl"
+
+[numthreads(1024, 1, 1)] void TransConv2D_1024
+#include "Convolution.hlsl"

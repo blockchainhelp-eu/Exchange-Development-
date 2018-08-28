@@ -1,0 +1,24 @@
+// Tensor concatenation kernels
+// https://github.com/keijiro/Pix2Pix
+
+#pragma enable_d3d11_debug_symbols
+
+#pragma kernel Concat4
+#pragma kernel Concat64
+#pragma kernel Concat512
+
+Buffer<float> Input1;
+Buffer<float> Input2;
+RWBuffer<float> Output;
+
+uint3 Input1Shape;
+uint3 Input2Shape;
+
+[numthreads(4, 1, 1)] void Concat4
+#include "Concat.hlsl"
+
+[numthreads(64, 1, 1)] void Concat64
+#include "Concat.hlsl"
+
+[numthreads(512, 1, 1)] void Concat512
+#include "Concat.hlsl"
